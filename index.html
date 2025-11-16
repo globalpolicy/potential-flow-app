@@ -1,0 +1,185 @@
+<html>
+  <head>
+    <title>Potential flow</title>
+
+    <script
+      src="https://cdn.plot.ly/plotly-3.1.0.min.js"
+      charset="utf-8"
+    ></script>
+    <style>
+      #top-container {
+        display: flex;
+        border: 1px solid black;
+        gap: 10px;
+        background-color: lightslategray;
+      }
+
+      #control-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      #control-panel-flow-elements {
+        border: 5px solid black;
+      }
+
+      #controls-add-elements {
+        display: flex;
+        flex-direction: column;
+        padding: 5px;
+      }
+
+      .element {
+        border: 2px solid black;
+        margin: 5px;
+      }
+
+      .element-property {
+        display: flex;
+        gap: 20px;
+        margin: 10px;
+      }
+
+      #control-panel-field-toggles {
+        border: 5px solid black;
+      }
+
+      #controls-toggle-fields {
+        display: flex;
+        flex-direction: column;
+        padding: 5px;
+      }
+
+      .field {
+        border: 1px dashed black;
+      }
+
+      #chart-area {
+        width: 95vw;
+        height: 98vh;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="top-container">
+      <div id="control-panel">
+        <div id="control-panel-flow-elements">
+          <div id="control-panel-heading">
+            <input
+              type="checkbox"
+              id="add-element-chkbox"
+              name="chkAddElement"
+              checked
+            />
+            <label for="add-element-chkbox">Add elements</label>
+          </div>
+
+          <div id="controls-add-elements">
+            <div class="element">
+              <div>
+                <input
+                  type="radio"
+                  id="uniform-flow-radiobtn"
+                  name="add-element"
+                  value="uniform-flow"
+                />
+                <label for="uniform-flow-radiobtn">Uniform flow</label>
+              </div>
+
+              <div class="element-property">
+                <label for="uniform-flow-speed">U</label>
+                <input type="number" id="uniform-flow-speed" value="2" />
+              </div>
+              <div class="element-property">
+                <label for="uniform-flow-alpha">α</label>
+                <input type="number" id="uniform-flow-alpha" value="0" />
+              </div>
+            </div>
+            <div class="element">
+              <div>
+                <input
+                  type="radio"
+                  id="source-flow-radiobtn"
+                  name="add-element"
+                  value="source-flow"
+                  checked
+                />
+                <label for="source-flow-radiobtn">Source flow</label>
+              </div>
+              <div class="element-property">
+                <label for="source-flow-discharge">q</label>
+                <input type="number" id="source-flow-discharge" value="100" />
+              </div>
+            </div>
+            <div class="element">
+              <div>
+                <input
+                  type="radio"
+                  id="free-vortex-radiobtn"
+                  name="add-element"
+                  value="free-vortex"
+                />
+                <label for="free-vortex-radiobtn">Free vortex</label>
+              </div>
+              <div class="element-property">
+                <label for="free-vortex-circulation">Γ</label>
+                <input type="number" id="free-vortex-circulation" value="100" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="control-panel-field-toggles">
+          <div id="control-panel-heading">Select field</div>
+          <div id="controls-toggle-fields">
+            <div class="field">
+              <input
+                type="radio"
+                id="field-potential-radiobtn"
+                name="field-toggle"
+                value="field-potential"
+              />
+              <label for="field-potential-radiobtn">Potential</label>
+            </div>
+            <div class="field">
+              <input
+                type="radio"
+                id="field-stream-radiobtn"
+                name="field-toggle"
+                value="field-stream"
+                checked
+              />
+              <label for="field-stream-radiobtn">Stream</label>
+            </div>
+
+            <div class="field">
+              <input
+                type="radio"
+                id="field-velocity-radiobtn"
+                name="field-toggle"
+                value="field-velocity"
+              />
+              <label for="field-velocity-radiobtn">Velocity</label>
+            </div>
+
+            <div class="field">
+              <input
+                type="radio"
+                id="field-cp-radiobtn"
+                name="field-toggle"
+                value="field-cp"
+              />
+              <label for="field-cp-radiobtn">Cp</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="chart-area"></div>
+    </div>
+
+    <script src="./fields.js"></script>
+
+    <script src="./main.js"></script>
+  </body>
+</html>
