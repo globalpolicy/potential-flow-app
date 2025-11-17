@@ -3,7 +3,7 @@ let firstTime = true; // global flag to switch from Plotly.newPlot() to .react()
 let elements = [
   new UniformFlow(2, 0),
   new SourceFlow(200, -10, 0),
-  new SourceFlow(-200, 10, 5),
+  new SourceFlow(-200, 10, 0),
 ];
 
 plotData(getFieldToPlot());
@@ -61,8 +61,8 @@ function plotData(fieldType) {
   let yStart = -50;
   let yEnd = 50;
 
-  let delX = .1;
-  let delY = .1;
+  let delX = 0.1;
+  let delY = 0.1;
 
   let xRange = xEnd - xStart;
   let yRange = yEnd - yStart;
@@ -99,7 +99,7 @@ function plotData(fieldType) {
         else if (fieldType == "psi") fieldValue = elements[k].PsiAt(x, y);
         else if (fieldType == "v") {
           fieldValue = elements[k].PhiAt(x, y);
-          // TODO: further modify fieldValue for velocity calc.
+          // this will need numerical differentiation down the line
         } else if (fieldType == "cp") {
           fieldValue = elements[k].PhiAt(x, y);
           // TODO: further modify fieldValue for pressure coefficient calc.
@@ -170,6 +170,81 @@ function plotData(fieldType) {
     }
   }
 
+  // create velocity vectors as lines and markers
+  const vectors = [];
+  debugger;
+  if (fieldType == "v") {
+    let xs = [], // start_x1, end_x1, start_x2, end_x2, ...
+      ys = []; // start_y1, end_y1, start_y2, end_y2, ...
+    for (let i = 0; i < xArray.length - 1; i += xArray.length / 50) { // we want some sparsity here so that the line segments don't start overlapping, hence the large increments
+      for (let j = 0; j < yArray.length - 1; j += yArray.length / 50) {
+        const u = (compositeField[j][i + 1] - compositeField[j][i]) / delX;
+        const v = (compositeField[j + 1][i] - compositeField[j][i]) / delY;
+
+        const vectorLength = 1;
+        const uCap = u / Math.sqrt(u * u + v * v);
+        const vCap = v / Math.sqrt(u * u + v * v);
+
+        const x0 = xArray[i] - (uCap * vectorLength) / 2;
+        const y0 = yArray[j] - (vCap * vectorLength) / 2;
+
+        const x1 = xArray[i] + (uCap * vectorLength) / 2;
+        const y1 = yArray[j] + (vCap * vectorLength) / 2;
+
+        xs.push(x0, x1, null);
+        ys.push(y0, y1, null);
+      }
+    }
+
+    // line segments for vector
+    vectors.push({
+      type: "scattergl",
+      mode: "lines",
+      x: xs,
+      y: ys,
+      line: { width: 1, color: "black" },
+      showlegend: false,
+      hoverinfo: "none",
+      visible: fieldType == "v",
+    });
+
+    // arrowheads at the end of line segments
+    let arrowXs = [],
+      arrowYs = [],
+      arrowAngles = [];
+    for (let i = 1; i < xs.length; i += 3) {
+      // start from 1 because the first is the start locations of the vectors
+      // should be the same length as ys
+      arrowXs.push(xs[i]);
+      arrowYs.push(ys[i]);
+      arrowAngles.push(
+        -(Math.atan2(ys[i] - ys[i - 1], xs[i] - xs[i - 1]) / Math.PI) * 180
+      ); // this, along with "arrow-right" and angleref:"previous" combo took half a day to figure out!
+      // arrowAngles.push(
+      //   -(
+      //     90 -
+      //     (Math.atan2(ys[i] - ys[i - 1], xs[i] - xs[i - 1]) / Math.PI) * 180
+      //   )
+      // );
+    }
+    vectors.push({
+      type: "scattergl",
+      mode: "markers",
+      x: arrowXs,
+      y: arrowYs,
+      line: { width: 0.5, color: "black" },
+      marker: {
+        symbol: "arrow-right",
+        angleref: "previous",
+        angle: arrowAngles,
+        size: 4,
+      },
+      showlegend: false,
+      hoverinfo: "none",
+      visible: fieldType == "v",
+    });
+  }
+
   let data = [
     {
       z: compositeField,
@@ -184,7 +259,7 @@ function plotData(fieldType) {
         //showlines: false,
         coloring: "heatmap",
       },
-      autocontour:true,
+      autocontour: true,
       ncontours: 50,
       opacity: 1.0,
       showscale: true,
@@ -192,12 +267,22 @@ function plotData(fieldType) {
       //   dash: "solid",
       // },
       connectgaps: false,
+      visible: fieldType != "v",
     },
+    ...vectors,
   ];
 
+  const selectedField =
+    fieldType == "phi"
+      ? "Potential"
+      : fieldType == "psi"
+      ? "Streamfunction"
+      : fieldType == "v"
+      ? "Velocity"
+      : "Pressure";
   var layout = {
     title: {
-      text: "Potential field",
+      text: `${selectedField} field`,
     },
     font: { size: 18 },
   };

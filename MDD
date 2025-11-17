@@ -1,0 +1,3 @@
+Setting autocontour: true and using a smaller delX and delY value helps with minimizing the prominence of theta discontinuity (for streamfunction value for source flows and for potential function for free vortex flows) on the x-axis rather than trying to manually control the contour parameters.
+All phase unwrapping attempts I've made have failed miserably.
+Someone needs to write an actual manual for Plotly.js. Seriously, do they expect us to just figure it out by trial and error? Spent like half a day figuring out marker rotations for arrowheads for velocity.
