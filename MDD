@@ -1,3 +1,111 @@
 Setting autocontour: true and using a smaller delX and delY value helps with minimizing the prominence of theta discontinuity (for streamfunction value for source flows and for potential function for free vortex flows) on the x-axis rather than trying to manually control the contour parameters.
 All phase unwrapping attempts I've made have failed miserably.
 Someone needs to write an actual manual for Plotly.js. Seriously, do they expect us to just figure it out by trial and error? Spent like half a day figuring out marker rotations for arrowheads for velocity.
+
+Apparently, xArray.length doesn't work inside kernel functions in GPU.js when passing xArray as a constant.
+I was generating x-tuples and y-tuples separately as different kernels and later combining them to pass to plotly:
+const generateXTuplesForVelField = gpu.createKernel(
+      function (uField, vField) {
+        // convert flat 1D index to row and column indices to extract relevant elements from the u and vField 2D arrays
+        const rowIndex = Math.floor(
+          this.thread.x / this.constants.xArrayLength
+        );
+        const colIndex = this.thread.x % this.constants.xArrayLength;
+
+        const u = uField[rowIndex][colIndex];
+        const v = vField[rowIndex][colIndex];
+
+        const vectorLength = 1;
+        const uCap = u / Math.sqrt(u * u + v * v);
+
+        const x0 = this.constants.xArray[colIndex] - (uCap * vectorLength) / 2;
+
+        const x1 = this.constants.xArray[colIndex] + (uCap * vectorLength) / 2;
+
+        return [x0, x1];
+      },
+      {
+        constants: { xArray: xArray, xArrayLength: xArray.length },
+        output: [(xArray.length - 1) * (yArray.length - 1)], // output is a 1D array with a tuple (x0, x1) for each nodal point, x0 and x1 being the start and end of the vector arrow.
+      }
+    );
+    const generateYTuplesForVelField = gpu.createKernel(
+      function (uField, vField) {
+        // convert flat 1D index to row and column indices to extract relevant elements from the u and vField 2D arrays
+        const rowIndex = Math.floor(
+          this.thread.x / this.constants.xArrayLength
+        );
+        const colIndex = this.thread.x % this.constants.xArrayLength;
+
+        const u = uField[rowIndex][colIndex];
+        const v = vField[rowIndex][colIndex];
+
+        const vectorLength = 1;
+        const vCap = v / Math.sqrt(u * u + v * v);
+
+        const y0 = this.constants.yArray[rowIndex] - (vCap * vectorLength) / 2;
+        const y1 = this.constants.yArray[rowIndex] + (vCap * vectorLength) / 2;
+
+        return [y0, y1];
+      },
+      {
+        constants: {
+          yArray: yArray,
+          xArray: xArray,
+          xArrayLength: xArray.length,
+        },
+        output: [(xArray.length - 1) * (yArray.length - 1)], // output is a 1D array with a thruple (y0, y1) for each nodal point, y0 and y1 being the start and end of the vector arrow.
+      }
+    );
+
+of course that's not going to work. the flattened x array and y array to be plotted as a scatter plot by plotly.js need to correspond with one another. Doing so separately destroys this. So, I had to generate them in the same kernel, basically obtaining the x and y tuples for each nodal index using generateXYTuplesForVelField()
+
+Suffering from success is when your kernel returns horizontal (u) and vertical (v) speeds for ~1M nodal points no sweat and you struggle to sample in an unbiased and efficient way from them. I tried the simplest approach of skipping every n points but that led to a strong bias i.e. the sampled points were along a diagonal line or another and the rest of the plot area would be empty. I tried using modulo operations to only pick points that are divisible by a specified number but that is too expensive, turns out. Same thing with Math.random() > some_fraction. I asked ChatGPT and it suggested a 'Partial Fisher-Yates approach', whatever that means. I just used the code it gave me:
+***
+Fastest way to pick k random samples WITHOUT replacement
+Best method for large arrays (1M) and small k: random index picking + swap
+
+You do not want to shuffle the whole array — O(N) = too slow for 1M elements.
+
+Instead, use a partial Fisher–Yates approach:
+
+function sampleWithoutReplacement(arr, k) {
+  const result = new Array(k);
+  const n = arr.length;
+
+  // Copy to avoid mutating the original
+  const copy = arr.slice();
+
+  for (let i = 0; i < k; i++) {
+    const r = i + Math.floor(Math.random() * (n - i));
+    result[i] = copy[r];
+    [copy[i], copy[r]] = [copy[r], copy[i]]; // swap
+  }
+  return result;
+}
+
+
+Time complexity: O(k)
+Works great for arrays of size 1,000,000 with k << n.
+Sampling k = 10,000 takes ~1–5 ms in Node.
+***
+
+The arrows are weirdly distributed still but at least it's not taking me forever to downsample.
+
+I now realize that I could simply precompute indices randomly and iterate over them to sample from the full field instead of iterating over the whole field (xyTuplesForVelField), which was probably the biggest culprit in all my attempts so far. I swear I've done this before but how easy it is to forget in a couple years.
+
+I now also realize that I didn't need to use GPU.js in the first place. The bottleneck was the `Plotly.react("chart-area", data, layout, config);` line. It takes a really long time to render even 1000 point-pairs (line segments representing velocity arrows).
+
+GUess what, the 'algorithm' that ChatGPT gave me gives the exact same arrows as this one that I wrote on my own:
+function sampleWithoutReplacement(arr, k) {
+      const result = [];
+      const n = arr.length;
+
+      for (let i = 0; i < k; i++) {
+        const r = Math.floor(Math.random() * n);
+        result.push(arr[r]);
+      }
+      return result;
+    }
+I also tried another way, by scaling the i index above by the ratio of the sizes of the two arrays but the resulting sample is biased as well (vectors are only drawn along a  straight line).
+Just gonna increase the number of vector lines to 2000.

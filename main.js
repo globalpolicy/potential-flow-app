@@ -6,6 +6,7 @@ let elements = [
   new SourceFlow(-200, 10, 0),
 ];
 
+const gpu = new GPU.GPU(); // instantiate GPU.js
 plotData(getFieldToPlot());
 
 document
@@ -174,27 +175,156 @@ function plotData(fieldType) {
   const vectors = [];
   debugger;
   if (fieldType == "v") {
-    let xs = [], // start_x1, end_x1, start_x2, end_x2, ...
-      ys = []; // start_y1, end_y1, start_y2, end_y2, ...
-    for (let i = 0; i < xArray.length - 1; i += xArray.length / 50) { // we want some sparsity here so that the line segments don't start overlapping, hence the large increments
-      for (let j = 0; j < yArray.length - 1; j += yArray.length / 50) {
-        const u = (compositeField[j][i + 1] - compositeField[j][i]) / delX;
-        const v = (compositeField[j + 1][i] - compositeField[j][i]) / delY;
+    const generateUField = gpu.createKernel(
+      function (compositeField) {
+        const u =
+          (compositeField[this.thread.y][this.thread.x + 1] -
+            compositeField[this.thread.y][this.thread.x]) /
+          this.constants.delX;
+        const v =
+          (compositeField[this.thread.y + 1][this.thread.x] -
+            compositeField[this.thread.y][this.thread.x]) /
+          this.constants.delY;
+
+        const vectorLength = 1;
+        const uCap = u / Math.sqrt(u * u + v * v);
+
+        const x0 =
+          this.constants.xArray[this.thread.x] - (uCap * vectorLength) / 2;
+
+        const x1 =
+          this.constants.xArray[this.thread.x] + (uCap * vectorLength) / 2;
+
+        return u;
+      },
+      {
+        constants: { xArray: xArray, delX: delX, delY: delY },
+        output: [xArray.length - 1, yArray.length - 1], // output is a 2D array for u-velocities at all nodal points of the XY grid
+      }
+    );
+    const generateVField = gpu.createKernel(
+      function (compositeField) {
+        const u =
+          (compositeField[this.thread.y][this.thread.x + 1] -
+            compositeField[this.thread.y][this.thread.x]) /
+          this.constants.delX;
+        const v =
+          (compositeField[this.thread.y + 1][this.thread.x] -
+            compositeField[this.thread.y][this.thread.x]) /
+          this.constants.delY;
+
+        const vectorLength = 1;
+        const vCap = v / Math.sqrt(u * u + v * v);
+
+        const y0 =
+          this.constants.yArray[this.thread.y] - (vCap * vectorLength) / 2;
+
+        const y1 =
+          this.constants.yArray[this.thread.y] + (vCap * vectorLength) / 2;
+
+        return v;
+      },
+      {
+        constants: { yArray: yArray, delX: delX, delY: delY },
+        output: [xArray.length - 1, yArray.length - 1], // output is a 2D array for u-velocities at all nodal points of the XY grid
+      }
+    );
+
+    const uField = generateUField(compositeField); // [row#][col#] from -ve to 0 to +ve
+    const vField = generateVField(compositeField); // [row#][col#] from -ve to 0 to +ve
+
+    const generateXYTuplesForVelField = gpu.createKernel(
+      function (uField, vField) {
+        // convert flat 1D index to row and column indices to extract relevant elements from the u and vField 2D arrays
+        const rowIndex = Math.floor(
+          this.thread.x / this.constants.xArrayLength
+        );
+        const colIndex = this.thread.x % this.constants.xArrayLength;
+
+        const u = uField[rowIndex][colIndex];
+        const v = vField[rowIndex][colIndex];
 
         const vectorLength = 1;
         const uCap = u / Math.sqrt(u * u + v * v);
         const vCap = v / Math.sqrt(u * u + v * v);
 
-        const x0 = xArray[i] - (uCap * vectorLength) / 2;
-        const y0 = yArray[j] - (vCap * vectorLength) / 2;
+        const x0 = this.constants.xArray[colIndex] - (uCap * vectorLength) / 2;
+        const x1 = this.constants.xArray[colIndex] + (uCap * vectorLength) / 2;
 
-        const x1 = xArray[i] + (uCap * vectorLength) / 2;
-        const y1 = yArray[j] + (vCap * vectorLength) / 2;
+        const y0 = this.constants.yArray[rowIndex] - (vCap * vectorLength) / 2;
+        const y1 = this.constants.yArray[rowIndex] + (vCap * vectorLength) / 2;
 
-        xs.push(x0, x1, null);
-        ys.push(y0, y1, null);
+        return [x0, x1, y0, y1];
+      },
+      {
+        constants: {
+          yArray: yArray,
+          xArray: xArray,
+          xArrayLength: xArray.length,
+        },
+        output: [(xArray.length - 1) * (yArray.length - 1)], // output is a 1D array of tuples (x0, x1, y0, y1) for each nodal point, x0,y0 and x1,y1 being the start and end of the vector line resp.
       }
+    );
+
+    let xyTuplesForVelField = generateXYTuplesForVelField(uField, vField);
+    let sampledXYtuples = sampleWithoutReplacement(xyTuplesForVelField, 2000);
+
+    let xs = flattenArrayForXs(sampledXYtuples);
+    let ys = flattenArrayForYs(sampledXYtuples);
+
+    // intended to convert [[1,2,5,2],[2,3,5,6]] to [1,2,null,2,3,null]. null is added for gap between consecutive vectors when plotting lines as a scatterplot
+    function flattenArrayForXs(notFlatArray) {
+      const retval = [];
+      for (let i = 0; i < notFlatArray.length; i++) {
+        let arrayElement = notFlatArray[i];
+        retval.push(arrayElement[0], arrayElement[1], null);
+      }
+      return retval;
     }
+
+    // intended to convert [[1,2,5,2],[2,3,5,6]] to [5,2,null,5,6,null]. null is added for gap between consecutive vectors when plotting lines as a scatterplot
+    function flattenArrayForYs(notFlatArray) {
+      const retval = [];
+      for (let i = 0; i < notFlatArray.length; i++) {
+        let arrayElement = notFlatArray[i];
+        retval.push(arrayElement[2], arrayElement[3], null);
+      }
+      return retval;
+    }
+
+    function sampleWithoutReplacement(arr, k) {
+      const result = [];
+      const n = arr.length;
+
+      for (let i = 0; i < k; i++) {
+        const r = Math.floor(Math.random() * n);
+        result.push(arr[r]);
+      }
+      return result;
+    }
+
+    // let xs = [], // start_x1, end_x1, start_x2, end_x2, ...
+    //   ys = []; // start_y1, end_y1, start_y2, end_y2, ...
+    // for (let i = 0; i < xArray.length - 1; i += xArray.length / 50) {
+    //   // we want some sparsity here so that the line segments don't start overlapping, hence the large increments
+    //   for (let j = 0; j < yArray.length - 1; j += yArray.length / 50) {
+    //     const u = (compositeField[j][i + 1] - compositeField[j][i]) / delX;
+    //     const v = (compositeField[j + 1][i] - compositeField[j][i]) / delY;
+
+    //     const vectorLength = 1;
+    //     const uCap = u / Math.sqrt(u * u + v * v);
+    //     const vCap = v / Math.sqrt(u * u + v * v);
+
+    //     const x0 = xArray[i] - (uCap * vectorLength) / 2;
+    //     const y0 = yArray[j] - (vCap * vectorLength) / 2;
+
+    //     const x1 = xArray[i] + (uCap * vectorLength) / 2;
+    //     const y1 = yArray[j] + (vCap * vectorLength) / 2;
+
+    //     xs.push(x0, x1, null);
+    //     ys.push(y0, y1, null);
+    //   }
+    // }
 
     // line segments for vector
     vectors.push({
