@@ -1,22 +1,395 @@
 let firstTime = true; // global flag to switch from Plotly.newPlot() to .react()
 
-let elements = [
+const gpu = new GPU.GPU(); // instantiate GPU.js
+
+let defaultElements = [
   new UniformFlow(2, 0),
   new SourceFlow(200, -10, 0),
   new SourceFlow(-200, 10, 0),
 ];
 
-const gpu = new GPU.GPU(); // instantiate GPU.js
-plotData(getFieldToPlot());
+class ElementListAdapter {
+  #elementsList = [];
+  /* entries of this list should be a POJO of format: 
+  {
+   id: 0,
+   active: true,
+   element: ComplexField
+  }
+  */
 
+  #plotterFunc = function plotData(fieldType, elements) {};
+
+  constructor(plotterFunc) {
+    this.#elementsList = [];
+    this.#plotterFunc = plotterFunc;
+  }
+
+  add(newElement) {
+    let existingLargestId =
+      this.#elementsList.length > 0
+        ? this.#elementsList[this.#elementsList.length - 1].id
+        : -1;
+
+    let newElementObj = {
+      id: existingLargestId + 1,
+      active: true,
+      element: newElement,
+    };
+    this.#elementsList.push(newElementObj);
+
+    this.#addEntryToHtmlElementsList(newElementObj);
+
+    this.#plotActiveFields();
+  }
+
+  plot() {
+    this.#plotActiveFields();
+  }
+
+  #plotActiveFields() {
+    const activeFields = this.#elementsList
+      .filter((x) => x.active)
+      .map((x) => x.element);
+    debugger;
+    this.#plotterFunc(this.#getFieldToPlot(), activeFields);
+  }
+
+  #addEntryToHtmlElementsList(newElementObj) {
+    /*
+    newElementObj will be a POJO of type
+    {
+      id: 1,
+      active: true,
+      element: ComplexField,
+    }
+    */
+
+    let uniformFlowListItemTemplate = `
+    <div class="control-panel-flow-element" id="element-list-item-${
+      newElementObj.id
+    }">
+              <div class="element-list-item">
+                <div style="display: flex">
+                  <input
+                    type="checkbox"
+                    id="element-list-item-checkbox-${newElementObj.id}"
+                    value="uniform-flow"
+                    ${newElementObj.active ? "checked" : ""}
+                  />
+                  <label for="element-list-uniform-flow-checkbox-${
+                    newElementObj.id
+                  }"
+                    >Uniform flow</label
+                  >
+
+                  <div style="margin-left: auto; padding-right: 2px">
+                    <button id="btn-del-${newElementObj.id}">Del</button>
+                  </div>
+                </div>
+
+                <div class="element-property">
+                  <label for="element-list-uniform-flow-speed-${
+                    newElementObj.id
+                  }">U</label>
+                  <input
+                    type="number"
+                    id="element-list-uniform-flow-speed-${newElementObj.id}"
+                    class="element-list-item-property-textbox"
+                    value="${newElementObj.element.U}"
+                  />
+                </div>
+                <div class="element-property">
+                  <label for="element-list-uniform-flow-alpha-${
+                    newElementObj.id
+                  }">α</label>
+                  <input
+                    type="number"
+                    id="element-list-uniform-flow-alpha-${newElementObj.id}"
+                    class="element-list-item-property-textbox"
+                    value="${newElementObj.element.alpha}"
+                  />
+                </div>
+              </div>
+            </div>
+    `;
+
+    let sourceFlowListItemTemplate = `
+    <div class="control-panel-flow-element" id="element-list-item-${
+      newElementObj.id
+    }">
+              <div class="element-list-item">
+                <div style="display: flex">
+                  <input
+                    type="checkbox"
+                    id="element-list-item-checkbox-${newElementObj.id}"
+                    value="source-flow"
+                    ${newElementObj.active ? "checked" : ""}
+                  />
+                  <label for="element-list-item-checkbox-${newElementObj.id}"
+                    >Source flow</label
+                  >
+
+                  <div style="margin-left: auto; padding-right: 2px">
+                    <button id="btn-del-${newElementObj.id}">Del</button>
+                  </div>
+                </div>
+
+                <div class="element-property">
+                  <label for="element-list-source-flow-discharge-${
+                    newElementObj.id
+                  }">q</label>
+                  <input
+                    type="number"
+                    id="element-list-source-flow-discharge-${newElementObj.id}"
+                    class="element-list-item-property-textbox"
+                    value="${newElementObj.element.q}"
+                  />
+                </div>
+
+                <div class="element-property">
+                  <label for="element-list-item-x-${newElementObj.id}">x</label>
+                  <input
+                    type="number"
+                    id="element-list-item-x-${newElementObj.id}"
+                    value="${newElementObj.element.x0}"
+                  />
+                </div>
+                <div class="element-property">
+                  <label for="element-list-item-y-${newElementObj.id}">y</label>
+                  <input
+                    type="number"
+                    id="element-list-item-y-${newElementObj.id}"
+                    value="${newElementObj.element.y0}"
+                  />
+                </div>
+              </div>
+            </div>
+    `;
+
+    let freeVortexListItemTemplate = `
+    <div class="control-panel-flow-element" id="element-list-item-${
+      newElementObj.id
+    }">
+              <div class="element-list-item">
+                <div style="display: flex">
+                  <input
+                    type="checkbox"
+                    id="element-list-item-checkbox-${newElementObj.id}"
+                    ${newElementObj.active ? "checked" : ""}
+                  />
+                  <label for="element-list-item-checkbox-${newElementObj.id}"
+                    >Free vortex</label
+                  >
+
+                  <div style="margin-left: auto; padding-right: 2px">
+                    <button id="btn-del-${newElementObj.id}">Del</button>
+                  </div>
+                </div>
+
+                <div class="element-property">
+                  <label for="element-list-item-free-vortex-circulation-${
+                    newElementObj.id
+                  }">Γ</label>
+                  <input
+                    type="number"
+                    id="element-list-item-free-vortex-circulation-${
+                      newElementObj.id
+                    }"
+                    class="element-list-item-property-textbox"
+                    value="${newElementObj.element.gamma}"
+                  />
+                </div>
+
+                <div class="element-property">
+                  <label for="element-list-item-x-${newElementObj.id}">x</label>
+                  <input
+                    type="number"
+                    id="element-list-item-x-${newElementObj.id}"
+                    value="${newElementObj.element.x0}"
+                  />
+                </div>
+                <div class="element-property">
+                  <label for="element-list-item-y-${newElementObj.id}">y</label>
+                  <input
+                    type="number"
+                    id="element-list-item-y-${newElementObj.id}"
+                    value="${newElementObj.element.y0}"
+                  />
+                </div>
+              </div>
+            </div>
+    `;
+
+    let htmlTemplateStringToAdd = "";
+    if (newElementObj.element instanceof UniformFlow) {
+      htmlTemplateStringToAdd = uniformFlowListItemTemplate;
+    } else if (newElementObj.element instanceof SourceFlow) {
+      htmlTemplateStringToAdd = sourceFlowListItemTemplate;
+    } else if (newElementObj.element instanceof FreeVortex) {
+      htmlTemplateStringToAdd = freeVortexListItemTemplate;
+    }
+
+    // insert the flow element to the control panel list of elements
+    const elementListContainer = document.getElementById(
+      "control-panel-flow-elements-list-content"
+    );
+    elementListContainer.insertAdjacentHTML(
+      "beforeend",
+      htmlTemplateStringToAdd
+    );
+
+    // attach event handler to the "Active" checkbox of the element listitem
+    elementListContainer
+      .querySelector(`#element-list-item-checkbox-${newElementObj.id}`)
+      .addEventListener("change", (e) =>
+        this.#elementListItemActivityCheckboxValueChanged(e)
+      );
+
+    // attach event handler to the "Delete" button of the element listitem
+    elementListContainer
+      .querySelector(`#btn-del-${newElementObj.id}`)
+      .addEventListener("click", (e) => this.#elementListItemDeleteClicked(e));
+
+    // attach event handler to the x,y parameter textboxes of the element listitem
+    elementListContainer
+      .querySelector(`#element-list-item-x-${newElementObj.id}`)
+      ?.addEventListener("change", (e) => this.#elementListItemXChanged(e));
+    elementListContainer
+      .querySelector(`#element-list-item-y-${newElementObj.id}`)
+      ?.addEventListener("change", (e) => this.#elementListItemYChanged(e));
+
+    // attach event handler to the unique parameter (U, alpha, q, gamma) textboxes of the element listitem
+    elementListContainer
+      .querySelectorAll(".element-list-item-property-textbox")
+      .forEach((x) => {
+        x.addEventListener("change", (e) => {
+          this.#elementListItemPropertyChanged(e);
+        });
+      });
+  }
+
+  #elementListItemPropertyChanged(event) {
+    // event handler for when any element's unique property (U, alpha, q, gamma) textbox is changed
+    const idInterHypenTokens = event.target.id.split("-");
+    const id = Number(
+      idInterHypenTokens[idInterHypenTokens.length - 1] // final token
+    );
+
+    const dataElement = this.#elementsList.filter((x) => x.id == id)[0].element;
+
+    const value = event.target.value;
+    const targetHtmlId = event.target.id;
+
+    if (dataElement instanceof FreeVortex) dataElement.gamma = Number(value);
+    else if (dataElement instanceof SourceFlow) dataElement.q = Number(value);
+    else if (dataElement instanceof UniformFlow) {
+      if (targetHtmlId.includes("alpha")) dataElement.alpha = Number(value);
+      else if (targetHtmlId.includes("speed")) dataElement.U = Number(value);
+    }
+    this.#plotActiveFields();
+  }
+
+  #elementListItemXChanged(event) {
+    // event handler for when any element's X parameter textbox content is changed
+    const id = Number(event.target.id.replace("element-list-item-x-", ""));
+    this.#setElementXParam(id, event.target.value);
+    this.#plotActiveFields();
+  }
+
+  #elementListItemYChanged(event) {
+    // event handler for when any element's Y parameter textbox content is changed
+    const id = Number(event.target.id.replace("element-list-item-y-", ""));
+    this.#setElementYParam(id, event.target.value);
+    this.#plotActiveFields();
+  }
+
+  #elementListItemActivityCheckboxValueChanged(event) {
+    // event handler for when any element's "Active" checkbox's checked state is changed
+    const id = Number(
+      event.target.id.replace("element-list-item-checkbox-", "")
+    );
+    this.#setElementActiveState(id, event.target.checked);
+    this.#plotActiveFields();
+  }
+
+  #setElementActiveState(id, activeState) {
+    // updates the internal elements list and redraw the correct field with active elements
+    for (let i = 0; i < this.#elementsList.length; i++) {
+      const elementObj = this.#elementsList[i];
+      if (elementObj.id == id) {
+        elementObj.active = activeState;
+        break;
+      }
+    }
+  }
+
+  #setElementXParam(id, x) {
+    // updates the internal elements list and redraw the correct field with active elements
+    for (let i = 0; i < this.#elementsList.length; i++) {
+      const elementObj = this.#elementsList[i];
+      if (elementObj.id == id) {
+        elementObj.element.x0 = x;
+        break;
+      }
+    }
+  }
+
+  #setElementYParam(id, y) {
+    // updates the internal elements list and redraw the correct field with active elements
+    for (let i = 0; i < this.#elementsList.length; i++) {
+      const elementObj = this.#elementsList[i];
+      if (elementObj.id == id) {
+        elementObj.element.y0 = y;
+        break;
+      }
+    }
+  }
+
+  #elementListItemDeleteClicked(event) {
+    // event handler for when any element's "Delete" button is clicked
+    const id = Number(event.target.id.replace("btn-del-", ""));
+    this.#deleteElement(id);
+    this.#plotActiveFields();
+  }
+
+  #deleteElement(id) {
+    // deletes the element with the specified id from the internal elements list
+    const elementIndex = this.#elementsList.findIndex((x) => x.id == id);
+    this.#elementsList.splice(elementIndex, 1);
+
+    // deletes the DOM node as well
+    const elementDiv = document.getElementById(`element-list-item-${id}`);
+    elementDiv.remove();
+  }
+
+  #getFieldToPlot() {
+    let fieldToPlot = "phi"; // default
+    if (document.getElementById("field-stream-radiobtn").checked)
+      fieldToPlot = "psi";
+    else if (document.getElementById("field-velocity-radiobtn").checked)
+      fieldToPlot = "v";
+    else if (document.getElementById("field-cp-radiobtn").checked)
+      fieldToPlot = "cp";
+    return fieldToPlot;
+  }
+}
+
+const elementListAdapter = new ElementListAdapter(plotData);
+elementListAdapter.add(defaultElements[0]);
+elementListAdapter.add(defaultElements[1]);
+elementListAdapter.add(defaultElements[2]);
+
+// attach event handlers to all available field radio buttons
 document
   .querySelectorAll("input[name='field-toggle']")
   .forEach((fieldRadioButton) => {
     fieldRadioButton.addEventListener("change", (event) => {
-      if (event.target.checked) plotData(getFieldToPlot());
+      if (event.target.checked) elementListAdapter.plot(); // trigger a plot of all active flow elements
     });
   });
 
+// attach event handler to the chart area to add the selected flow element
 const chartArea = document.getElementById("chart-area");
 chartArea.on("plotly_click", function (data) {
   console.log(data);
@@ -34,28 +407,29 @@ chartArea.on("plotly_click", function (data) {
         addFreeVortex(data.points[0].x, data.points[0].y); // add new free vortex at the clicked location
       }
     }
-
-    plotData(getFieldToPlot()); // plot the elements anew
   }
 });
 
 function addUniformFlow() {
   let U = Number(document.getElementById("uniform-flow-speed").value);
   let alpha = Number(document.getElementById("uniform-flow-alpha").value);
-  elements.push(new UniformFlow(U, alpha));
+
+  elementListAdapter.add(new UniformFlow(U, alpha));
 }
 
 function addSourceFlow(x, y) {
   let q = Number(document.getElementById("source-flow-discharge").value);
-  elements.push(new SourceFlow(q, x, y));
+
+  elementListAdapter.add(new SourceFlow(q, x, y));
 }
 
 function addFreeVortex(x, y) {
   let gamma = Number(document.getElementById("free-vortex-circulation").value);
-  elements.push(new FreeVortex(gamma, x, y));
+
+  elementListAdapter.add(new FreeVortex(gamma, x, y));
 }
 
-function plotData(fieldType) {
+function plotData(fieldType, elements) {
   let xStart = -50;
   let xEnd = 50;
 
@@ -90,19 +464,21 @@ function plotData(fieldType) {
   // calculate the field values
   let elementWiseFields = []; //list of fields for all the elements
   for (let k = 0; k < elements.length; k++) {
+    let element = elements[k];
+
     for (let j = 0; j < yArray.length; j++) {
       for (let i = 0; i < xArray.length; i++) {
         let x = xArray[i];
         let y = yArray[j];
 
         let fieldValue = 0;
-        if (fieldType == "phi") fieldValue = elements[k].PhiAt(x, y);
-        else if (fieldType == "psi") fieldValue = elements[k].PsiAt(x, y);
+        if (fieldType == "phi") fieldValue = element.PhiAt(x, y);
+        else if (fieldType == "psi") fieldValue = element.PsiAt(x, y);
         else if (fieldType == "v") {
-          fieldValue = elements[k].PhiAt(x, y);
+          fieldValue = element.PhiAt(x, y);
           // this will need numerical differentiation down the line
         } else if (fieldType == "cp") {
-          fieldValue = elements[k].PhiAt(x, y);
+          fieldValue = element.PhiAt(x, y);
           // TODO: further modify fieldValue for pressure coefficient calc.
         }
 
@@ -110,7 +486,7 @@ function plotData(fieldType) {
       }
     }
     elementWiseFields.push({
-      element: elements[k],
+      element: element,
       field: structuredClone(fieldArray),
     }); // add the field for this element to elementWiseFields
   }
@@ -425,15 +801,4 @@ function plotData(fieldType) {
   } else {
     Plotly.react("chart-area", data, layout, config);
   }
-}
-
-function getFieldToPlot() {
-  let fieldToPlot = "phi"; // default
-  if (document.getElementById("field-stream-radiobtn").checked)
-    fieldToPlot = "psi";
-  else if (document.getElementById("field-velocity-radiobtn").checked)
-    fieldToPlot = "v";
-  else if (document.getElementById("field-cp-radiobtn").checked)
-    fieldToPlot = "cp";
-  return fieldToPlot;
 }

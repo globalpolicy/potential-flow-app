@@ -109,3 +109,5 @@ function sampleWithoutReplacement(arr, k) {
     }
 I also tried another way, by scaling the i index above by the ratio of the sizes of the two arrays but the resulting sample is biased as well (vectors are only drawn along a  straight line).
 Just gonna increase the number of vector lines to 2000.
+
+If you attach a class method as the event handler to any DOM event, be sure to .bind() the instance of the class during the handler assignment or use an arrow function.

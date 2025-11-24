@@ -8,7 +8,6 @@
     ></script>
 
     <script src="./gpu-browser.min.js"></script>
-    
 
     <style>
       #top-container {
@@ -34,7 +33,7 @@
         padding: 5px;
       }
 
-      .element {
+      .add-element-item {
         border: 2px solid black;
         margin: 5px;
       }
@@ -53,6 +52,23 @@
         display: flex;
         flex-direction: column;
         padding: 5px;
+      }
+
+      #control-panel-flow-elements-list {
+        display: flex;
+        flex-direction: column;
+        padding: 5px;
+        border: 5px solid black;
+      }
+
+      #control-panel-flow-elements-list-content {
+        display: flex;
+        flex-direction: column;
+        padding: 5px;
+      }
+
+      .control-panel-flow-element {
+        border: 1px dashed black;
       }
 
       .field {
@@ -80,7 +96,7 @@
           </div>
 
           <div id="controls-add-elements">
-            <div class="element">
+            <div class="add-element-item">
               <div>
                 <input
                   type="radio"
@@ -100,7 +116,7 @@
                 <input type="number" id="uniform-flow-alpha" value="0" />
               </div>
             </div>
-            <div class="element">
+            <div class="add-element-item">
               <div>
                 <input
                   type="radio"
@@ -116,7 +132,7 @@
                 <input type="number" id="source-flow-discharge" value="100" />
               </div>
             </div>
-            <div class="element">
+            <div class="add-element-item">
               <div>
                 <input
                   type="radio"
@@ -175,6 +191,14 @@
               />
               <label for="field-cp-radiobtn">Cp</label>
             </div>
+          </div>
+        </div>
+        <div id="control-panel-flow-elements-list">
+          <div id="control-panel-flow-elements-list-heading">Elements</div>
+          <div id="control-panel-flow-elements-list-content">
+            <!-- <div class="control-panel-flow-element"> -->
+            
+            <!-- </div> -->
           </div>
         </div>
       </div>
