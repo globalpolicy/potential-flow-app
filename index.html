@@ -46,12 +46,44 @@
 
       #control-panel-field-toggles {
         border: 5px solid black;
+        padding: 5px;
       }
 
       #controls-toggle-fields {
         display: flex;
         flex-direction: column;
         padding: 5px;
+      }
+
+      #control-panel-domain-params {
+        border: 5px solid black;
+        padding: 5px;
+      }
+
+      #control-panel-domain-params-content {
+        display: flex;
+        flex-direction: column;
+        margin: 5px;
+      }
+
+      .controls-domain-param-entry {
+        border: 1px dashed black;
+        display: flex;
+        padding: 5px;
+      }
+
+      .controls-domain-param-entry-col {
+        display: flex;
+        flex: 1;
+        padding-left: 5px;
+        text-align: center;
+        border: 1px solid black;
+      }
+
+      .domain-param-textbox {
+        width: 80px; /* fixed width, won't expand container */
+        flex: 0 0 auto; /* don't grow or shrink */
+        margin-left: 5px;
       }
 
       #control-panel-flow-elements-list {
@@ -193,21 +225,84 @@
             </div>
           </div>
         </div>
+        <div id="control-panel-domain-params">
+          <div id="control-panel-heading">Domain params</div>
+          <div id="control-panel-domain-params-content">
+            <div class="controls-domain-param-entry">
+              <div class="controls-domain-param-entry-col">
+                -x
+                <input
+                  type="number"
+                  id="xStart"
+                  value="-50"
+                  class="domain-param-textbox"
+                />
+              </div>
+              <div class="controls-domain-param-entry-col">
+                +x
+                <input
+                  type="number"
+                  id="xEnd"
+                  value="50"
+                  class="domain-param-textbox"
+                />
+              </div>
+            </div>
+            <div class="controls-domain-param-entry">
+              <div class="controls-domain-param-entry-col">
+                -y
+                <input
+                  type="number"
+                  id="yStart"
+                  value="-50"
+                  class="domain-param-textbox"
+                />
+              </div>
+              <div class="controls-domain-param-entry-col">
+                +y
+                <input
+                  type="number"
+                  id="yEnd"
+                  value="50"
+                  class="domain-param-textbox"
+                />
+              </div>
+            </div>
+            <div class="controls-domain-param-entry">
+              <div class="controls-domain-param-entry-col">
+                Δx
+                <input
+                  type="number"
+                  id="delX"
+                  value="0.1"
+                  class="domain-param-textbox"
+                  min="0"
+                  step="0.1"
+                />
+              </div>
+              <div class="controls-domain-param-entry-col">
+                Δy
+                <input
+                  type="number"
+                  id="delY"
+                  value="0.1"
+                  class="domain-param-textbox"
+                  min="0"
+                  step="0.1"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
         <div id="control-panel-flow-elements-list">
           <div id="control-panel-flow-elements-list-heading">Elements</div>
-          <div id="control-panel-flow-elements-list-content">
-            <!-- <div class="control-panel-flow-element"> -->
-            
-            <!-- </div> -->
-          </div>
+          <div id="control-panel-flow-elements-list-content"></div>
         </div>
       </div>
 
       <div id="chart-area"></div>
     </div>
 
-    <script src="./fields.js"></script>
-
-    <script src="./main.js"></script>
+    <script src="./main.js" type="module"></script>
   </body>
 </html>

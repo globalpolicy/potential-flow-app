@@ -1,3 +1,6 @@
+import { ElementListAdapter } from "./ElementListAdapter.js";
+import { UniformFlow, SourceFlow, FreeVortex } from "./fields.js";
+
 let firstTime = true; // global flag to switch from Plotly.newPlot() to .react()
 
 const gpu = new GPU.GPU(); // instantiate GPU.js
@@ -8,374 +11,7 @@ let defaultElements = [
   new SourceFlow(-200, 10, 0),
 ];
 
-class ElementListAdapter {
-  #elementsList = [];
-  /* entries of this list should be a POJO of format: 
-  {
-   id: 0,
-   active: true,
-   element: ComplexField
-  }
-  */
-
-  #plotterFunc = function plotData(fieldType, elements) {};
-
-  constructor(plotterFunc) {
-    this.#elementsList = [];
-    this.#plotterFunc = plotterFunc;
-  }
-
-  add(newElement) {
-    let existingLargestId =
-      this.#elementsList.length > 0
-        ? this.#elementsList[this.#elementsList.length - 1].id
-        : -1;
-
-    let newElementObj = {
-      id: existingLargestId + 1,
-      active: true,
-      element: newElement,
-    };
-    this.#elementsList.push(newElementObj);
-
-    this.#addEntryToHtmlElementsList(newElementObj);
-
-    this.#plotActiveFields();
-  }
-
-  plot() {
-    this.#plotActiveFields();
-  }
-
-  #plotActiveFields() {
-    const activeFields = this.#elementsList
-      .filter((x) => x.active)
-      .map((x) => x.element);
-    debugger;
-    this.#plotterFunc(this.#getFieldToPlot(), activeFields);
-  }
-
-  #addEntryToHtmlElementsList(newElementObj) {
-    /*
-    newElementObj will be a POJO of type
-    {
-      id: 1,
-      active: true,
-      element: ComplexField,
-    }
-    */
-
-    let uniformFlowListItemTemplate = `
-    <div class="control-panel-flow-element" id="element-list-item-${
-      newElementObj.id
-    }">
-              <div class="element-list-item">
-                <div style="display: flex">
-                  <input
-                    type="checkbox"
-                    id="element-list-item-checkbox-${newElementObj.id}"
-                    value="uniform-flow"
-                    ${newElementObj.active ? "checked" : ""}
-                  />
-                  <label for="element-list-uniform-flow-checkbox-${
-                    newElementObj.id
-                  }"
-                    >Uniform flow</label
-                  >
-
-                  <div style="margin-left: auto; padding-right: 2px">
-                    <button id="btn-del-${newElementObj.id}">Del</button>
-                  </div>
-                </div>
-
-                <div class="element-property">
-                  <label for="element-list-uniform-flow-speed-${
-                    newElementObj.id
-                  }">U</label>
-                  <input
-                    type="number"
-                    id="element-list-uniform-flow-speed-${newElementObj.id}"
-                    class="element-list-item-property-textbox"
-                    value="${newElementObj.element.U}"
-                  />
-                </div>
-                <div class="element-property">
-                  <label for="element-list-uniform-flow-alpha-${
-                    newElementObj.id
-                  }">α</label>
-                  <input
-                    type="number"
-                    id="element-list-uniform-flow-alpha-${newElementObj.id}"
-                    class="element-list-item-property-textbox"
-                    value="${newElementObj.element.alpha}"
-                  />
-                </div>
-              </div>
-            </div>
-    `;
-
-    let sourceFlowListItemTemplate = `
-    <div class="control-panel-flow-element" id="element-list-item-${
-      newElementObj.id
-    }">
-              <div class="element-list-item">
-                <div style="display: flex">
-                  <input
-                    type="checkbox"
-                    id="element-list-item-checkbox-${newElementObj.id}"
-                    value="source-flow"
-                    ${newElementObj.active ? "checked" : ""}
-                  />
-                  <label for="element-list-item-checkbox-${newElementObj.id}"
-                    >Source flow</label
-                  >
-
-                  <div style="margin-left: auto; padding-right: 2px">
-                    <button id="btn-del-${newElementObj.id}">Del</button>
-                  </div>
-                </div>
-
-                <div class="element-property">
-                  <label for="element-list-source-flow-discharge-${
-                    newElementObj.id
-                  }">q</label>
-                  <input
-                    type="number"
-                    id="element-list-source-flow-discharge-${newElementObj.id}"
-                    class="element-list-item-property-textbox"
-                    value="${newElementObj.element.q}"
-                  />
-                </div>
-
-                <div class="element-property">
-                  <label for="element-list-item-x-${newElementObj.id}">x</label>
-                  <input
-                    type="number"
-                    id="element-list-item-x-${newElementObj.id}"
-                    value="${newElementObj.element.x0}"
-                  />
-                </div>
-                <div class="element-property">
-                  <label for="element-list-item-y-${newElementObj.id}">y</label>
-                  <input
-                    type="number"
-                    id="element-list-item-y-${newElementObj.id}"
-                    value="${newElementObj.element.y0}"
-                  />
-                </div>
-              </div>
-            </div>
-    `;
-
-    let freeVortexListItemTemplate = `
-    <div class="control-panel-flow-element" id="element-list-item-${
-      newElementObj.id
-    }">
-              <div class="element-list-item">
-                <div style="display: flex">
-                  <input
-                    type="checkbox"
-                    id="element-list-item-checkbox-${newElementObj.id}"
-                    ${newElementObj.active ? "checked" : ""}
-                  />
-                  <label for="element-list-item-checkbox-${newElementObj.id}"
-                    >Free vortex</label
-                  >
-
-                  <div style="margin-left: auto; padding-right: 2px">
-                    <button id="btn-del-${newElementObj.id}">Del</button>
-                  </div>
-                </div>
-
-                <div class="element-property">
-                  <label for="element-list-item-free-vortex-circulation-${
-                    newElementObj.id
-                  }">Γ</label>
-                  <input
-                    type="number"
-                    id="element-list-item-free-vortex-circulation-${
-                      newElementObj.id
-                    }"
-                    class="element-list-item-property-textbox"
-                    value="${newElementObj.element.gamma}"
-                  />
-                </div>
-
-                <div class="element-property">
-                  <label for="element-list-item-x-${newElementObj.id}">x</label>
-                  <input
-                    type="number"
-                    id="element-list-item-x-${newElementObj.id}"
-                    value="${newElementObj.element.x0}"
-                  />
-                </div>
-                <div class="element-property">
-                  <label for="element-list-item-y-${newElementObj.id}">y</label>
-                  <input
-                    type="number"
-                    id="element-list-item-y-${newElementObj.id}"
-                    value="${newElementObj.element.y0}"
-                  />
-                </div>
-              </div>
-            </div>
-    `;
-
-    let htmlTemplateStringToAdd = "";
-    if (newElementObj.element instanceof UniformFlow) {
-      htmlTemplateStringToAdd = uniformFlowListItemTemplate;
-    } else if (newElementObj.element instanceof SourceFlow) {
-      htmlTemplateStringToAdd = sourceFlowListItemTemplate;
-    } else if (newElementObj.element instanceof FreeVortex) {
-      htmlTemplateStringToAdd = freeVortexListItemTemplate;
-    }
-
-    // insert the flow element to the control panel list of elements
-    const elementListContainer = document.getElementById(
-      "control-panel-flow-elements-list-content"
-    );
-    elementListContainer.insertAdjacentHTML(
-      "beforeend",
-      htmlTemplateStringToAdd
-    );
-
-    // attach event handler to the "Active" checkbox of the element listitem
-    elementListContainer
-      .querySelector(`#element-list-item-checkbox-${newElementObj.id}`)
-      .addEventListener("change", (e) =>
-        this.#elementListItemActivityCheckboxValueChanged(e)
-      );
-
-    // attach event handler to the "Delete" button of the element listitem
-    elementListContainer
-      .querySelector(`#btn-del-${newElementObj.id}`)
-      .addEventListener("click", (e) => this.#elementListItemDeleteClicked(e));
-
-    // attach event handler to the x,y parameter textboxes of the element listitem
-    elementListContainer
-      .querySelector(`#element-list-item-x-${newElementObj.id}`)
-      ?.addEventListener("change", (e) => this.#elementListItemXChanged(e));
-    elementListContainer
-      .querySelector(`#element-list-item-y-${newElementObj.id}`)
-      ?.addEventListener("change", (e) => this.#elementListItemYChanged(e));
-
-    // attach event handler to the unique parameter (U, alpha, q, gamma) textboxes of the element listitem
-    elementListContainer
-      .querySelectorAll(".element-list-item-property-textbox")
-      .forEach((x) => {
-        x.addEventListener("change", (e) => {
-          this.#elementListItemPropertyChanged(e);
-        });
-      });
-  }
-
-  #elementListItemPropertyChanged(event) {
-    // event handler for when any element's unique property (U, alpha, q, gamma) textbox is changed
-    const idInterHypenTokens = event.target.id.split("-");
-    const id = Number(
-      idInterHypenTokens[idInterHypenTokens.length - 1] // final token
-    );
-
-    const dataElement = this.#elementsList.filter((x) => x.id == id)[0].element;
-
-    const value = event.target.value;
-    const targetHtmlId = event.target.id;
-
-    if (dataElement instanceof FreeVortex) dataElement.gamma = Number(value);
-    else if (dataElement instanceof SourceFlow) dataElement.q = Number(value);
-    else if (dataElement instanceof UniformFlow) {
-      if (targetHtmlId.includes("alpha")) dataElement.alpha = Number(value);
-      else if (targetHtmlId.includes("speed")) dataElement.U = Number(value);
-    }
-    this.#plotActiveFields();
-  }
-
-  #elementListItemXChanged(event) {
-    // event handler for when any element's X parameter textbox content is changed
-    const id = Number(event.target.id.replace("element-list-item-x-", ""));
-    this.#setElementXParam(id, event.target.value);
-    this.#plotActiveFields();
-  }
-
-  #elementListItemYChanged(event) {
-    // event handler for when any element's Y parameter textbox content is changed
-    const id = Number(event.target.id.replace("element-list-item-y-", ""));
-    this.#setElementYParam(id, event.target.value);
-    this.#plotActiveFields();
-  }
-
-  #elementListItemActivityCheckboxValueChanged(event) {
-    // event handler for when any element's "Active" checkbox's checked state is changed
-    const id = Number(
-      event.target.id.replace("element-list-item-checkbox-", "")
-    );
-    this.#setElementActiveState(id, event.target.checked);
-    this.#plotActiveFields();
-  }
-
-  #setElementActiveState(id, activeState) {
-    // updates the internal elements list and redraw the correct field with active elements
-    for (let i = 0; i < this.#elementsList.length; i++) {
-      const elementObj = this.#elementsList[i];
-      if (elementObj.id == id) {
-        elementObj.active = activeState;
-        break;
-      }
-    }
-  }
-
-  #setElementXParam(id, x) {
-    // updates the internal elements list and redraw the correct field with active elements
-    for (let i = 0; i < this.#elementsList.length; i++) {
-      const elementObj = this.#elementsList[i];
-      if (elementObj.id == id) {
-        elementObj.element.x0 = x;
-        break;
-      }
-    }
-  }
-
-  #setElementYParam(id, y) {
-    // updates the internal elements list and redraw the correct field with active elements
-    for (let i = 0; i < this.#elementsList.length; i++) {
-      const elementObj = this.#elementsList[i];
-      if (elementObj.id == id) {
-        elementObj.element.y0 = y;
-        break;
-      }
-    }
-  }
-
-  #elementListItemDeleteClicked(event) {
-    // event handler for when any element's "Delete" button is clicked
-    const id = Number(event.target.id.replace("btn-del-", ""));
-    this.#deleteElement(id);
-    this.#plotActiveFields();
-  }
-
-  #deleteElement(id) {
-    // deletes the element with the specified id from the internal elements list
-    const elementIndex = this.#elementsList.findIndex((x) => x.id == id);
-    this.#elementsList.splice(elementIndex, 1);
-
-    // deletes the DOM node as well
-    const elementDiv = document.getElementById(`element-list-item-${id}`);
-    elementDiv.remove();
-  }
-
-  #getFieldToPlot() {
-    let fieldToPlot = "phi"; // default
-    if (document.getElementById("field-stream-radiobtn").checked)
-      fieldToPlot = "psi";
-    else if (document.getElementById("field-velocity-radiobtn").checked)
-      fieldToPlot = "v";
-    else if (document.getElementById("field-cp-radiobtn").checked)
-      fieldToPlot = "cp";
-    return fieldToPlot;
-  }
-}
-
-const elementListAdapter = new ElementListAdapter(plotData);
+const elementListAdapter = new ElementListAdapter(plotDataWrapper);
 elementListAdapter.add(defaultElements[0]);
 elementListAdapter.add(defaultElements[1]);
 elementListAdapter.add(defaultElements[2]);
@@ -410,6 +46,13 @@ chartArea.on("plotly_click", function (data) {
   }
 });
 
+// attach event handler to all domain parameter textboxes to recalculate and redraw everything
+document.querySelectorAll(".domain-param-textbox").forEach((el) => {
+  el.addEventListener("change", (event) => {
+    elementListAdapter.plot(); // trigger a recalculation/replot
+  });
+});
+
 function addUniformFlow() {
   let U = Number(document.getElementById("uniform-flow-speed").value);
   let alpha = Number(document.getElementById("uniform-flow-alpha").value);
@@ -429,16 +72,49 @@ function addFreeVortex(x, y) {
   elementListAdapter.add(new FreeVortex(gamma, x, y));
 }
 
-function plotData(fieldType, elements) {
-  let xStart = -50;
-  let xEnd = 50;
+function getFieldToPlot() {
+  let fieldToPlot = "phi"; // default
+  if (document.getElementById("field-stream-radiobtn").checked)
+    fieldToPlot = "psi";
+  else if (document.getElementById("field-velocity-radiobtn").checked)
+    fieldToPlot = "v";
+  else if (document.getElementById("field-cp-radiobtn").checked)
+    fieldToPlot = "cp";
+  return fieldToPlot;
+}
 
-  let yStart = -50;
-  let yEnd = 50;
+function plotDataWrapper(elementsToPlot, speedAtInfinity) {
+  const xStart = Number(document.getElementById("xStart").value);
+  const yStart = Number(document.getElementById("yStart").value);
+  const xEnd = Number(document.getElementById("xEnd").value);
+  const yEnd = Number(document.getElementById("yEnd").value);
+  const delX = Number(document.getElementById("delX").value);
+  const delY = Number(document.getElementById("delY").value);
 
-  let delX = 0.1;
-  let delY = 0.1;
+  plotData(
+    getFieldToPlot(),
+    elementsToPlot,
+    speedAtInfinity,
+    xStart,
+    xEnd,
+    yStart,
+    yEnd,
+    delX,
+    delY
+  );
+}
 
+function plotData(
+  fieldType,
+  elements,
+  speedAtInfinity,
+  xStart = -50,
+  xEnd = 50,
+  yStart = -50,
+  yEnd = 50,
+  delX = 0.1,
+  delY = 0.1
+) {
   let xRange = xEnd - xStart;
   let yRange = yEnd - yStart;
 
@@ -476,10 +152,10 @@ function plotData(fieldType, elements) {
         else if (fieldType == "psi") fieldValue = element.PsiAt(x, y);
         else if (fieldType == "v") {
           fieldValue = element.PhiAt(x, y);
-          // this will need numerical differentiation down the line
+          // this will need numerical differentiation and scatter plot for vector line segment calculations down the line
         } else if (fieldType == "cp") {
           fieldValue = element.PhiAt(x, y);
-          // TODO: further modify fieldValue for pressure coefficient calc.
+          // this will need numerical differentiation and magnitude calculation down the line
         }
 
         fieldArray[j][i] = fieldValue;
@@ -550,7 +226,7 @@ function plotData(fieldType, elements) {
   // create velocity vectors as lines and markers
   const vectors = [];
   debugger;
-  if (fieldType == "v") {
+  if (fieldType == "v" || fieldType == "cp") {
     const generateUField = gpu.createKernel(
       function (compositeField) {
         const u =
@@ -575,7 +251,7 @@ function plotData(fieldType, elements) {
       },
       {
         constants: { xArray: xArray, delX: delX, delY: delY },
-        output: [xArray.length - 1, yArray.length - 1], // output is a 2D array for u-velocities at all nodal points of the XY grid
+        output: [xArray.length - 1, yArray.length - 1], // output is a 2D array [width, height] for u-velocities at all nodal points of the XY grid
       }
     );
     const generateVField = gpu.createKernel(
@@ -602,181 +278,226 @@ function plotData(fieldType, elements) {
       },
       {
         constants: { yArray: yArray, delX: delX, delY: delY },
-        output: [xArray.length - 1, yArray.length - 1], // output is a 2D array for u-velocities at all nodal points of the XY grid
+        output: [xArray.length - 1, yArray.length - 1], // output is a 2D [width, height] array for u-velocities at all nodal points of the XY grid
       }
     );
 
     const uField = generateUField(compositeField); // [row#][col#] from -ve to 0 to +ve
     const vField = generateVField(compositeField); // [row#][col#] from -ve to 0 to +ve
 
-    const generateXYTuplesForVelField = gpu.createKernel(
-      function (uField, vField) {
-        // convert flat 1D index to row and column indices to extract relevant elements from the u and vField 2D arrays
-        const rowIndex = Math.floor(
-          this.thread.x / this.constants.xArrayLength
-        );
-        const colIndex = this.thread.x % this.constants.xArrayLength;
+    if (fieldType == "v") {
+      // generate the line segments for velocity vectors
+      const generateXYTuplesForVelField = gpu.createKernel(
+        function (uField, vField) {
+          // convert flat 1D index to row and column indices to extract relevant elements from the u and vField 2D arrays
+          const rowIndex = Math.floor(
+            this.thread.x / this.constants.xArrayLength
+          );
+          const colIndex = this.thread.x % this.constants.xArrayLength;
 
-        const u = uField[rowIndex][colIndex];
-        const v = vField[rowIndex][colIndex];
+          const u = uField[rowIndex][colIndex];
+          const v = vField[rowIndex][colIndex];
 
-        const vectorLength = 1;
-        const uCap = u / Math.sqrt(u * u + v * v);
-        const vCap = v / Math.sqrt(u * u + v * v);
+          const vectorLength = 1;
+          const uCap = u / Math.sqrt(u * u + v * v);
+          const vCap = v / Math.sqrt(u * u + v * v);
 
-        const x0 = this.constants.xArray[colIndex] - (uCap * vectorLength) / 2;
-        const x1 = this.constants.xArray[colIndex] + (uCap * vectorLength) / 2;
+          const x0 =
+            this.constants.xArray[colIndex] - (uCap * vectorLength) / 2;
+          const x1 =
+            this.constants.xArray[colIndex] + (uCap * vectorLength) / 2;
 
-        const y0 = this.constants.yArray[rowIndex] - (vCap * vectorLength) / 2;
-        const y1 = this.constants.yArray[rowIndex] + (vCap * vectorLength) / 2;
+          const y0 =
+            this.constants.yArray[rowIndex] - (vCap * vectorLength) / 2;
+          const y1 =
+            this.constants.yArray[rowIndex] + (vCap * vectorLength) / 2;
 
-        return [x0, x1, y0, y1];
-      },
-      {
-        constants: {
-          yArray: yArray,
-          xArray: xArray,
-          xArrayLength: xArray.length,
+          return [x0, x1, y0, y1];
         },
-        output: [(xArray.length - 1) * (yArray.length - 1)], // output is a 1D array of tuples (x0, x1, y0, y1) for each nodal point, x0,y0 and x1,y1 being the start and end of the vector line resp.
+        {
+          constants: {
+            yArray: yArray,
+            xArray: xArray,
+            xArrayLength: xArray.length,
+          },
+          output: [(xArray.length - 1) * (yArray.length - 1)], // output is a 1D array of tuples (x0, x1, y0, y1) for each nodal point, x0,y0 and x1,y1 being the start and end of the vector line resp.
+        }
+      );
+
+      let xyTuplesForVelField = generateXYTuplesForVelField(uField, vField);
+      let sampledXYtuples = sampleWithoutReplacement(xyTuplesForVelField, 2000);
+
+      let xs = flattenArrayForXs(sampledXYtuples);
+      let ys = flattenArrayForYs(sampledXYtuples);
+
+      // intended to convert [[1,2,5,2],[2,3,5,6]] to [1,2,null,2,3,null]. null is added for gap between consecutive vectors when plotting lines as a scatterplot
+      function flattenArrayForXs(notFlatArray) {
+        const retval = [];
+        for (let i = 0; i < notFlatArray.length; i++) {
+          let arrayElement = notFlatArray[i];
+          retval.push(arrayElement[0], arrayElement[1], null);
+        }
+        return retval;
       }
-    );
 
-    let xyTuplesForVelField = generateXYTuplesForVelField(uField, vField);
-    let sampledXYtuples = sampleWithoutReplacement(xyTuplesForVelField, 2000);
-
-    let xs = flattenArrayForXs(sampledXYtuples);
-    let ys = flattenArrayForYs(sampledXYtuples);
-
-    // intended to convert [[1,2,5,2],[2,3,5,6]] to [1,2,null,2,3,null]. null is added for gap between consecutive vectors when plotting lines as a scatterplot
-    function flattenArrayForXs(notFlatArray) {
-      const retval = [];
-      for (let i = 0; i < notFlatArray.length; i++) {
-        let arrayElement = notFlatArray[i];
-        retval.push(arrayElement[0], arrayElement[1], null);
+      // intended to convert [[1,2,5,2],[2,3,5,6]] to [5,2,null,5,6,null]. null is added for gap between consecutive vectors when plotting lines as a scatterplot
+      function flattenArrayForYs(notFlatArray) {
+        const retval = [];
+        for (let i = 0; i < notFlatArray.length; i++) {
+          let arrayElement = notFlatArray[i];
+          retval.push(arrayElement[2], arrayElement[3], null);
+        }
+        return retval;
       }
-      return retval;
-    }
 
-    // intended to convert [[1,2,5,2],[2,3,5,6]] to [5,2,null,5,6,null]. null is added for gap between consecutive vectors when plotting lines as a scatterplot
-    function flattenArrayForYs(notFlatArray) {
-      const retval = [];
-      for (let i = 0; i < notFlatArray.length; i++) {
-        let arrayElement = notFlatArray[i];
-        retval.push(arrayElement[2], arrayElement[3], null);
+      function sampleWithoutReplacement(arr, k) {
+        const result = [];
+        const n = arr.length;
+
+        for (let i = 0; i < k; i++) {
+          const r = Math.floor(Math.random() * n);
+          result.push(arr[r]);
+        }
+        return result;
       }
-      return retval;
-    }
 
-    function sampleWithoutReplacement(arr, k) {
-      const result = [];
-      const n = arr.length;
+      // line segments for vector
+      vectors.push({
+        type: "scattergl",
+        mode: "lines",
+        x: xs,
+        y: ys,
+        line: { width: 1, color: "black" },
+        showlegend: false,
+        hoverinfo: "none",
+        visible: fieldType == "v",
+      });
 
-      for (let i = 0; i < k; i++) {
-        const r = Math.floor(Math.random() * n);
-        result.push(arr[r]);
+      // arrowheads at the end of line segments
+      let arrowXs = [],
+        arrowYs = [],
+        arrowAngles = [];
+      for (let i = 1; i < xs.length; i += 3) {
+        // start from 1 because the first is the start locations of the vectors
+        // should be the same length as ys
+        arrowXs.push(xs[i]);
+        arrowYs.push(ys[i]);
+        arrowAngles.push(
+          -(Math.atan2(ys[i] - ys[i - 1], xs[i] - xs[i - 1]) / Math.PI) * 180
+        ); // this, along with "arrow-right" and angleref:"previous" combo took half a day to figure out!
       }
-      return result;
+      vectors.push({
+        type: "scattergl",
+        mode: "markers",
+        x: arrowXs,
+        y: arrowYs,
+        line: { width: 0.5, color: "black" },
+        marker: {
+          symbol: "arrow-right",
+          angleref: "previous",
+          angle: arrowAngles,
+          size: 4,
+        },
+        showlegend: false,
+        hoverinfo: "none",
+        visible: fieldType == "v",
+      });
+    } else if (fieldType == "cp") {
+      // generate the pressure coefficient for each nodal point
+      const generateCpField = gpu.createKernel(
+        function (uField, vField, U_inf) {
+          const speedSquared =
+            Math.pow(uField[this.thread.y][this.thread.x], 2) +
+            Math.pow(vField[this.thread.y][this.thread.x], 2);
+          let cp = 1 - speedSquared / Math.pow(U_inf, 2);
+          if (Math.abs(cp) > 100) {
+            cp = 1 / 0; // proxy for NaN which we won't plot. can't directly return NaN
+          }
+          return cp;
+        },
+        {
+          constants: {},
+          output: [uField[0].length, uField.length], // vField also possible to use instead of uField since they should have the same span over the whole domain
+        }
+      );
+
+      const cpField = generateCpField(uField, vField, speedAtInfinity); // 2D array [rows][columns]
+
+      // overwrite compositeField from phi to the just calculated Cp values, except at the right and top boundaries since we don't have speed (nor Cp) values there
+      for (let j = 0; j < compositeField.length - 1; j++) {
+        // row positions
+        for (let i = 0; i < compositeField[0].length - 1; i++) {
+          // column positions
+          compositeField[j][i] = cpField[j][i];
+        }
+      }
+
+      // overwrite the last x and y boundary values with the penultimate ones
+      for (let i = 0; i < compositeField[0].length; i++) {
+        compositeField[compositeField.length - 1][i] =
+          compositeField[compositeField.length - 2][i]; // replace the last row with the penultimate row
+      }
+      for (let j = 0; j < compositeField.length; j++) {
+        compositeField[j][compositeField[0].length - 1] =
+          compositeField[j][compositeField[0].length - 2]; // replace the last column with the penultimate column
+      }
     }
-
-    // let xs = [], // start_x1, end_x1, start_x2, end_x2, ...
-    //   ys = []; // start_y1, end_y1, start_y2, end_y2, ...
-    // for (let i = 0; i < xArray.length - 1; i += xArray.length / 50) {
-    //   // we want some sparsity here so that the line segments don't start overlapping, hence the large increments
-    //   for (let j = 0; j < yArray.length - 1; j += yArray.length / 50) {
-    //     const u = (compositeField[j][i + 1] - compositeField[j][i]) / delX;
-    //     const v = (compositeField[j + 1][i] - compositeField[j][i]) / delY;
-
-    //     const vectorLength = 1;
-    //     const uCap = u / Math.sqrt(u * u + v * v);
-    //     const vCap = v / Math.sqrt(u * u + v * v);
-
-    //     const x0 = xArray[i] - (uCap * vectorLength) / 2;
-    //     const y0 = yArray[j] - (vCap * vectorLength) / 2;
-
-    //     const x1 = xArray[i] + (uCap * vectorLength) / 2;
-    //     const y1 = yArray[j] + (vCap * vectorLength) / 2;
-
-    //     xs.push(x0, x1, null);
-    //     ys.push(y0, y1, null);
-    //   }
-    // }
-
-    // line segments for vector
-    vectors.push({
-      type: "scattergl",
-      mode: "lines",
-      x: xs,
-      y: ys,
-      line: { width: 1, color: "black" },
-      showlegend: false,
-      hoverinfo: "none",
-      visible: fieldType == "v",
-    });
-
-    // arrowheads at the end of line segments
-    let arrowXs = [],
-      arrowYs = [],
-      arrowAngles = [];
-    for (let i = 1; i < xs.length; i += 3) {
-      // start from 1 because the first is the start locations of the vectors
-      // should be the same length as ys
-      arrowXs.push(xs[i]);
-      arrowYs.push(ys[i]);
-      arrowAngles.push(
-        -(Math.atan2(ys[i] - ys[i - 1], xs[i] - xs[i - 1]) / Math.PI) * 180
-      ); // this, along with "arrow-right" and angleref:"previous" combo took half a day to figure out!
-      // arrowAngles.push(
-      //   -(
-      //     90 -
-      //     (Math.atan2(ys[i] - ys[i - 1], xs[i] - xs[i - 1]) / Math.PI) * 180
-      //   )
-      // );
-    }
-    vectors.push({
-      type: "scattergl",
-      mode: "markers",
-      x: arrowXs,
-      y: arrowYs,
-      line: { width: 0.5, color: "black" },
-      marker: {
-        symbol: "arrow-right",
-        angleref: "previous",
-        angle: arrowAngles,
-        size: 4,
-      },
-      showlegend: false,
-      hoverinfo: "none",
-      visible: fieldType == "v",
-    });
   }
 
-  let data = [
-    {
-      z: compositeField,
-      x: xArray,
-      y: yArray,
-      type: "contour",
-      //          autocontour:"true",
-      contours: {
-        start: -30,
-        size: 10,
-        end: 30,
-        //showlines: false,
-        coloring: "heatmap",
+  let data;
+  if (fieldType == "cp") {
+    data = [
+      {
+        z: compositeField,
+        x: xArray,
+        y: yArray,
+        type: "contour",
+
+        contours: {
+          start: -100,
+          // size: 10,
+          end: 1,
+          // showlines: true,
+          coloring: "heatmap",
+        },
+        line: { width: 0 },
+        autocontour: true,
+
+        opacity: 1.0,
+        showscale: true,
+
+        connectgaps: false,
       },
-      autocontour: true,
-      ncontours: 50,
-      opacity: 1.0,
-      showscale: true,
-      // line: {
-      //   dash: "solid",
-      // },
-      connectgaps: false,
-      visible: fieldType != "v",
-    },
-    ...vectors,
-  ];
+    ];
+  } else {
+    data = [
+      {
+        z: compositeField,
+        x: xArray,
+        y: yArray,
+        type: "contour",
+
+        contours: {
+          start: -30,
+          size: 10,
+          end: 30,
+          //showlines: false,
+          coloring: "heatmap",
+        },
+
+        autocontour: true,
+        ncontours: 50,
+        opacity: 1.0,
+        showscale: true,
+        // line: {
+        //   dash: "solid",
+        // },
+        connectgaps: false,
+        visible: fieldType != "v",
+      },
+      ...vectors,
+    ];
+  }
 
   const selectedField =
     fieldType == "phi"

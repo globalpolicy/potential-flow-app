@@ -19,7 +19,7 @@ class ComplexField {
   }
 }
 
-class UniformFlow extends ComplexField {
+export class UniformFlow extends ComplexField {
   U = 0;
   alpha = 0;
 
@@ -42,7 +42,7 @@ class UniformFlow extends ComplexField {
   }
 }
 
-class SourceFlow extends ComplexField {
+export class SourceFlow extends ComplexField {
   q = 0;
   x0 = 0;
   y0 = 0;
@@ -84,7 +84,7 @@ class SourceFlow extends ComplexField {
   }
 }
 
-class FreeVortex extends ComplexField {
+export class FreeVortex extends ComplexField {
   gamma = 0;
   x0 = 0;
   y0 = 0;

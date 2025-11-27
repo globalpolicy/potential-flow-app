@@ -111,3 +111,9 @@ I also tried another way, by scaling the i index above by the ratio of the sizes
 Just gonna increase the number of vector lines to 2000.
 
 If you attach a class method as the event handler to any DOM event, be sure to .bind() the instance of the class during the handler assignment or use an arrow function.
+
+JavaScript is such an underdetermined system. Even after having written JS for years, if I start out with vanilla loose mode zero structure enforced, all forgiving JS just to get something done quick and dirty,
+I end up regretting that decision to not stick to a structure because before long, I'll be looking to refactor a 1000 line single script .js file having a 700 line function and a 300 line class that somehow
+ended up handling the entire program logic while still giving a false sense of being sufficiently structured. I sometimes wish JavaScript was a bit more like Java - it's polar opposite in allowed organizational flexibility.
+JavaScript that starts out as a quick and dirty code snippet to get something done and ends up needing to be built upon is why we need rules from the outset.
+Even after I've split the main.js contents into two, it still feels so messy and spaghetti-like.
